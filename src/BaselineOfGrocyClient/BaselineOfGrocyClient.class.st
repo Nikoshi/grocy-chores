@@ -1,3 +1,6 @@
+"
+Baseline for the Grocy Client Project
+"
 Class {
 	#name : 'BaselineOfGrocyClient',
 	#superclass : 'BaselineOf',

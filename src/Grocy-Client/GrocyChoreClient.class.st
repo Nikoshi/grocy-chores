@@ -11,8 +11,9 @@ Class {
 	#classVars : [
 		'DefaultApiKey'
 	],
-	#category : 'Grocy-Client',
-	#package : 'Grocy-Client'
+	#category : 'Grocy-Client-Base',
+	#package : 'Grocy-Client',
+	#tag : 'Base'
 }
 
 { #category : 'initialization' }

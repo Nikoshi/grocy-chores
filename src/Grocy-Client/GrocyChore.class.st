@@ -9,8 +9,9 @@ Class {
 		'name',
 		'nextExecution'
 	],
-	#category : 'Grocy-Client',
-	#package : 'Grocy-Client'
+	#category : 'Grocy-Client-Base',
+	#package : 'Grocy-Client',
+	#tag : 'Base'
 }
 
 { #category : 'accessing' }
