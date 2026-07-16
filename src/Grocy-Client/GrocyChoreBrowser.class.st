@@ -220,7 +220,7 @@ GrocyChoreBrowser >> initializeWindow: aWindow [
 
 	super initializeWindow: aWindow.
 	aWindow
-		title: 'Grocy Haushalts-Zentrale';
+		title: 'Grocy Manager';
 		initialExtent: 550 @ 500;
 		whenClosedDo: [ self stopAutoRefreshTimer ].
 
