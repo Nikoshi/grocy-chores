@@ -70,16 +70,19 @@ GrocyChoreBrowser >> completeSelectedTask [
 
 { #category : 'initialization' }
 GrocyChoreBrowser >> connectPresenters [
+
 	refreshButton action: [ self refreshChoreList ].
 	searchField whenTextChangedDo: [ :text | self updateFilteredList ].
-	
+
 	choreList contextMenu: self createContextMenu.
-	taskList contextMenu: (self newMenu addItem: [ :item | 
-		item name: 'Als erledigt markieren'; icon: (self iconNamed: #testGreen); action: [ self completeSelectedTask ] ]).
-		
+	taskList contextMenu: (self newMenu addItem: [ :item |
+				 item
+					 name: 'Als erledigt markieren';
+					 icon: (self iconNamed: #testGreen);
+					 action: [ self completeSelectedTask ] ]).
+
 	"Neu"
 	shoppingListTable contextMenu: self createShoppingContextMenu
-
 ]
 
 { #category : 'context menu' }
@@ -213,15 +216,16 @@ GrocyChoreBrowser >> initializePresenters [
 ]
 
 { #category : 'initialization' }
-GrocyChoreBrowser >> initializeWindow: aWindowPresenter [
+GrocyChoreBrowser >> initializeWindow: aWindow [
 
-	super initializeWindow: aWindowPresenter.
-	aWindowPresenter
-		title: 'Grocy Chores Browser';
-		initialExtent: 425 @ 350;
-		"Sobald das Fenster geschlossen wird, killen wir den Timer-Prozess"whenClosedDo: [ self stopAutoRefreshTimer ].
+	super initializeWindow: aWindow.
+	aWindow
+		title: 'Grocy Haushalts-Zentrale';
+		initialExtent: 550 @ 500;
+		whenClosedDo: [ self stopAutoRefreshTimer ].
 
-	"Sofort beim Öffnen den Timer starten"
+	self registerHotReload: aWindow.
+
 	self startAutoRefreshTimer.
 	[ self refreshChoreList ] forkAt: Processor userBackgroundPriority named: 'Grocy-InitialSync'
 ]
@@ -245,6 +249,29 @@ GrocyChoreBrowser >> refreshChoreList [
 	] on: Error do: [ :err |
 		UIManager default defer: [
 			self inform: 'Fehler beim Laden: ', err messageText ] ]
+]
+
+{ #category : 'updating' }
+GrocyChoreBrowser >> registerHotReload: aWindow [
+	"Registriert den nahtlosen Hot-Reload-Shortcut (Strg + R)"
+
+	aWindow bindKeyCombination: $r control | $r command
+		toAction: [
+
+			| realistischesFenster altePosition alteGroesse neuesPresenter |
+			self inform: 'Hot-Reloading UI...'.
+
+			realistischesFenster := aWindow window.
+			altePosition := realistischesFenster position.
+			alteGroesse := realistischesFenster bounds extent.
+
+			aWindow close.
+
+			neuesPresenter := self class new.
+			neuesPresenter open.
+			neuesPresenter window window
+				position: altePosition;
+				extent: alteGroesse ]
 ]
 
 { #category : 'removing' }
