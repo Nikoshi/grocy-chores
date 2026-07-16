@@ -42,7 +42,7 @@ GrocyChoreBrowser class >> menuCommandOn: aBuilder [
 	<worldMenu>
 	(aBuilder item: #GrocyHaushaltsZentrale)
 		order: 200;
-		label: 'Grocy Zentrale';
+		label: 'Grocy';
 		icon: (self iconNamed: #home);
 		help: 'Öffnet den Grocy Manager';
 		action: [ self new open ]
