@@ -36,6 +36,18 @@ GrocyChoreBrowser class >> defaultLayout [
 		yourself
 ]
 
+{ #category : 'world menu' }
+GrocyChoreBrowser class >> menuCommandOn: aBuilder [
+
+	<worldMenu>
+	(aBuilder item: #GrocyHaushaltsZentrale)
+		order: 200;
+		label: 'Grocy Zentrale';
+		icon: (self iconNamed: #home);
+		help: 'Öffnet den Grocy Manager';
+		action: [ self new open ]
+]
+
 { #category : 'removing' }
 GrocyChoreBrowser >> clearWholeShoppingList [
 	(UIManager default confirm: 'Möchtest du die Einkaufsliste wirklich komplett leeren?') ifTrue: [
