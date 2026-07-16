@@ -13,11 +13,13 @@ Class {
 		'debugMode',
 		'statusLabel',
 		'timerProcess',
-		'notifiedChoreIds'
+		'notifiedChoreIds',
+		'notebook',
+		'taskList',
+		'allTasks'
 	],
-	#category : 'Grocy-Client-Base',
-	#package : 'Grocy-Client',
-	#tag : 'Base'
+	#category : 'Grocy-Client',
+	#package : 'Grocy-Client'
 }
 
 { #category : 'layout' }
@@ -25,10 +27,20 @@ GrocyChoreBrowser class >> defaultLayout [
 	^ SpBoxLayout newVertical
 		spacing: 5;
 		add: #searchField expand: false;
-		add: #choreList;
+		add: #notebook;
 		add: #refreshButton expand: false;
 		add: #statusLabel expand: false;
 		yourself
+]
+
+{ #category : 'updating' }
+GrocyChoreBrowser >> completeSelectedTask [
+	taskList selectedItem ifNotNil: [ :task |
+		[
+			client completeTaskId: task id.
+			self refreshChoreList.
+			self inform: ('To-Do "{1}" erfolgreich abgeschlossen!' format: { task name }).
+		] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
 ]
 
 { #category : 'initialization' }
@@ -36,8 +48,12 @@ GrocyChoreBrowser >> connectPresenters [
 	refreshButton action: [ self refreshChoreList ].
 	searchField whenTextChangedDo: [ :text | self updateFilteredList ].
 
-	"Hier aktivieren wir das Rechtsklick-Menü auf der Tabelle"
-	choreList contextMenu: self createContextMenu
+	choreList contextMenu: self createContextMenu.
+	taskList contextMenu: (self newMenu addItem: [ :item |
+		item
+			name: 'Als erledigt markieren (Abschließen)';
+			icon: (self iconNamed: #testGreen);
+			action: [ self completeSelectedTask ] ])
 ]
 
 { #category : 'context menu' }
@@ -97,6 +113,7 @@ GrocyChoreBrowser >> initialize [
 	| gespeicherterKey eingabe |
 	super initialize.
 	allChores := OrderedCollection new.
+	allTasks := OrderedCollection new.
 	notifiedChoreIds := Set new.
 	debugMode := false.
 
@@ -119,24 +136,35 @@ Bitte gib deinen Grocy API-Key ein:'.
 { #category : 'initialization' }
 GrocyChoreBrowser >> initializePresenters [
 	searchField := self newTextInput.
-	searchField placeholder: 'Aufgaben filtern...'.
+	searchField placeholder: 'Aufgaben oder To-Dos filtern...'.
 
+	"1. Chores Tabelle bauen"
 	choreList := self newTable.
+	(debugMode notNil and: [ debugMode ]) ifTrue: [ choreList addColumn: self idColumn ].
+	choreList addColumn: self nameColumn; addColumn: self dateColumn; addColumn: self statusColumn.
 
+	"2. Neue Tasks Tabelle bauen (Mit beSortable direkt auf den Spalten)"
+	taskList := self newTable.
 	(debugMode notNil and: [ debugMode ]) ifTrue: [
-		choreList addColumn: self idColumn ].
+		taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
 
-	choreList
-		addColumn: self nameColumn;
-		addColumn: self dateColumn;
-		addColumn: self statusColumn.
+	taskList
+		addColumn: ((SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable);
+		addColumn: ((SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable);
+		addColumn: ((SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable).
+
+	"3. Tabs (Notebook) zusammenstellen"
+	notebook := self newNotebook.
+	notebook
+		addPage: (SpNotebookPage title: 'Wiederkehrend (Chores)' icon: (self iconNamed: #calendar) provider: [ choreList ]);
+		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #task) provider: [ taskList ]).
 
 	refreshButton := self newButton.
-	refreshButton label: 'Aufgaben laden'.
+	refreshButton label: 'Alles aktualisieren'.
 	refreshButton icon: (self iconNamed: #refresh).
 
 	statusLabel := self newLabel.
-	statusLabel label: 'Noch keine Aufgaben geladen.'
+	statusLabel label: 'Noch keine Daten geladen.'
 ]
 
 { #category : 'initialization' }
@@ -162,8 +190,8 @@ GrocyChoreBrowser >> nameColumn [
 GrocyChoreBrowser >> refreshChoreList [
 	[
 		allChores := client getChores.
+		allTasks := client getTasks.
 
-		"Sorgt dafür, dass das UI sicher aus dem Hintergrund-Thread geupdated wird"
 		UIManager default defer: [
 			self updateFilteredList.
 			self updateStatistics ]
@@ -263,15 +291,18 @@ GrocyChoreBrowser >> stopAutoRefreshTimer [
 { #category : 'updating' }
 GrocyChoreBrowser >> updateFilteredList [
 
-	| query filtered |
+	| query filteredChores filteredTasks |
 	query := searchField text trimBoth asLowercase.
 
 	query isEmpty
-		ifTrue: [ choreList items: allChores ]
+		ifTrue: [
+			choreList items: allChores.
+			taskList items: allTasks ]
 		ifFalse: [
-			filtered := allChores select: [ :chore |
-				chore name asLowercase includesSubstring: query ].
-			choreList items: filtered ]
+			filteredChores := allChores select: [ :c | c name asLowercase includesSubstring: query ].
+			filteredTasks := allTasks select: [ :t | t name asLowercase includesSubstring: query ].
+			choreList items: filteredChores.
+			taskList items: filteredTasks ]
 ]
 
 { #category : 'updating' }
