@@ -36,6 +36,21 @@ GrocyChoreClient >> apiUrl: aString [
 	apiUrl := aString
 ]
 
+{ #category : 'initialization' }
+GrocyChoreClient >> buildProductCache [
+
+	| productsJson cache |
+	productsJson := STONJSON fromString: (ZnClient new
+		url: (self objectsApiUrl , 'objects/products');
+		headerAt: 'grocy-api-key' put: apiKey;
+		get).
+
+	cache := Dictionary new.
+	productsJson do: [ :prod |
+		cache at: (prod at: 'id') put: (prod at: 'name') ].
+	^ cache
+]
+
 { #category : 'removing' }
 GrocyChoreClient >> clearShoppingList [
 	"Da die Objects-API kein 'clear' kennt, löschen wir alle Einträge nacheinander"
@@ -100,48 +115,21 @@ GrocyChoreClient >> getChores [
 { #category : 'accessing' }
 GrocyChoreClient >> getShoppingList [
 
-	| baseUrl productsUrl shoppingUrl productsJson shoppingJson productCache |
+	| shoppingJson productCache |
 	apiKey ifNil: [ self error: 'Missing API Key' ].
 
-	"Basis-URL für die Objects-API vorbereiten"
-	baseUrl := apiUrl copyFrom: 1 to: apiUrl size - 6.
-	productsUrl := baseUrl , 'objects/products'.
-	shoppingUrl := baseUrl , 'objects/shopping_list'.
+	"1. Lokalen Cache über die Hilfsmethode aufbauen"
+	productCache := self buildProductCache.
 
-	"Alle Produkte einmalig herunterladen"
-	productsJson := STONJSON fromString: (ZnClient new
-			                 url: productsUrl;
-			                 headerAt: 'grocy-api-key' put: apiKey;
-			                 get).
-
-	"Einen lokalen Produkt-Cache bauen: Schlüssel ist die ID, Wert ist der Name"
-	productCache := Dictionary new.
-	productsJson do: [ :prod | productCache at: (prod at: 'id') put: (prod at: 'name') ].
-
-	"Die eigentliche Einkaufsliste von der Objects-API holen"
+	"2. Einkaufsliste herunterladen"
 	shoppingJson := STONJSON fromString: (ZnClient new
-			                 url: shoppingUrl;
-			                 headerAt: 'grocy-api-key' put: apiKey;
-			                 get).
+		url: (self objectsApiUrl , 'objects/shopping_list');
+		headerAt: 'grocy-api-key' put: apiKey;
+		get).
 
-	"Die Liste auswerten und die Produktnamen blitzschnell lokal nachschlagen"
+	"3. Einträge über die Mapping-Methode transformieren"
 	^ shoppingJson collect: [ :each |
-			  | itemId prodId prodName noteText itemAmount |
-			  itemId := each at: 'id'.
-			  itemAmount := each at: 'amount' ifAbsent: [ 1 ].
-			  noteText := each at: 'note' ifAbsent: [ nil ].
-
-			  "Holt die product_id (falls vorhanden)"
-			  prodId := each at: 'product_id' ifAbsent: [ nil ].
-
-			  "Sucht den echten Namen aus unserem Cache, falls eine gültige ID existiert"
-			  prodName := prodId ifNil: [ nil ] ifNotNil: [ productCache at: prodId ifAbsent: [ 'Unbekanntes Produkt' ] ].
-
-			  GrocyShoppingItem new
-				  id: itemId
-				  productName: prodName
-				  amount: itemAmount
-				  note: noteText ]
+		self mapShoppingItem: each withCache: productCache ]
 ]
 
 { #category : 'accessing' }
@@ -167,6 +155,32 @@ GrocyChoreClient >> initialize [
 	super initialize.
 	apiUrl := 'http://localhost:9283/api/chores'.
 	apiKey := self class defaultApiKey
+]
+
+{ #category : 'initialization' }
+GrocyChoreClient >> mapShoppingItem: each withCache: productCache [
+
+	| itemId prodId prodName noteText itemAmount |
+	itemId := each at: 'id'.
+	itemAmount := each at: 'amount' ifAbsent: [ 1 ].
+	noteText := each at: 'note' ifAbsent: [ nil ].
+
+	prodId := each at: 'product_id' ifAbsent: [ nil ].
+	prodName := prodId
+		ifNil: [ nil ]
+		ifNotNil: [ productCache at: prodId ifAbsent: [ 'Unbekanntes Produkt' ] ].
+
+	^ GrocyShoppingItem new
+		id: itemId
+		productName: prodName
+		amount: itemAmount
+		note: noteText
+]
+
+{ #category : 'converting' }
+GrocyChoreClient >> objectsApiUrl [
+	"Schneidet /chores ab und liefert die Basis für die Objects-API"
+	^ apiUrl copyFrom: 1 to: (apiUrl size - 6)
 ]
 
 { #category : 'accessing' }

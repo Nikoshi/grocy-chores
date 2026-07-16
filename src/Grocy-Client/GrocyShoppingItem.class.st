@@ -23,8 +23,9 @@ GrocyShoppingItem >> amount [
 { #category : 'accessing' }
 GrocyShoppingItem >> displayName [
 	"Prüft, ob ein echtes Produkt verknüpft ist. Falls nicht, wird die Notiz genutzt"
+
 	productName ifNotNil: [ ^ productName ].
-	note ifNotNil: [ ^ '- ', note ].
+	note ifNotNil: [ ^ note ].
 	^ 'Unbenannter Eintrag'
 ]
 
@@ -33,7 +34,7 @@ GrocyShoppingItem >> id [
 	^ id
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'accessing' }
 GrocyShoppingItem >> id: anInteger productName: aString amount: aNumber note: aNoteString [
 	id := anInteger.
 	productName := aString.
