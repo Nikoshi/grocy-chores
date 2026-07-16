@@ -37,6 +37,30 @@ GrocyChoreClient >> apiUrl: aString [
 ]
 
 { #category : 'initialization' }
+GrocyChoreClient >> buildProductCache [
+
+	| productsJson cache |
+	productsJson := STONJSON fromString: (ZnClient new
+		url: (self objectsApiUrl , 'objects/products');
+		headerAt: 'grocy-api-key' put: apiKey;
+		get).
+
+	cache := Dictionary new.
+	productsJson do: [ :prod |
+		cache at: (prod at: 'id') put: (prod at: 'name') ].
+	^ cache
+]
+
+{ #category : 'removing' }
+GrocyChoreClient >> clearShoppingList [
+	"Da die Objects-API kein 'clear' kennt, löschen wir alle Einträge nacheinander"
+
+	| aktuelleListe |
+	aktuelleListe := self getShoppingList.
+	aktuelleListe do: [ :item | self removeShoppingItemId: item id ]
+]
+
+{ #category : 'initialization' }
 GrocyChoreClient >> completeTaskId: anInteger [
 	"Markiert eine einmalige Aufgabe mit der geforderten Uhrzeit als erledigt"
 
@@ -89,6 +113,26 @@ GrocyChoreClient >> getChores [
 ]
 
 { #category : 'accessing' }
+GrocyChoreClient >> getShoppingList [
+
+	| shoppingJson productCache |
+	apiKey ifNil: [ self error: 'Missing API Key' ].
+
+	"1. Lokalen Cache über die Hilfsmethode aufbauen"
+	productCache := self buildProductCache.
+
+	"2. Einkaufsliste herunterladen"
+	shoppingJson := STONJSON fromString: (ZnClient new
+		url: (self objectsApiUrl , 'objects/shopping_list');
+		headerAt: 'grocy-api-key' put: apiKey;
+		get).
+
+	"3. Einträge über die Mapping-Methode transformieren"
+	^ shoppingJson collect: [ :each |
+		self mapShoppingItem: each withCache: productCache ]
+]
+
+{ #category : 'accessing' }
 GrocyChoreClient >> getTasks [
 
 	| jsonArray |
@@ -113,6 +157,32 @@ GrocyChoreClient >> initialize [
 	apiKey := self class defaultApiKey
 ]
 
+{ #category : 'initialization' }
+GrocyChoreClient >> mapShoppingItem: each withCache: productCache [
+
+	| itemId prodId prodName noteText itemAmount |
+	itemId := each at: 'id'.
+	itemAmount := each at: 'amount' ifAbsent: [ 1 ].
+	noteText := each at: 'note' ifAbsent: [ nil ].
+
+	prodId := each at: 'product_id' ifAbsent: [ nil ].
+	prodName := prodId
+		ifNil: [ nil ]
+		ifNotNil: [ productCache at: prodId ifAbsent: [ 'Unbekanntes Produkt' ] ].
+
+	^ GrocyShoppingItem new
+		id: itemId
+		productName: prodName
+		amount: itemAmount
+		note: noteText
+]
+
+{ #category : 'converting' }
+GrocyChoreClient >> objectsApiUrl [
+	"Schneidet /chores ab und liefert die Basis für die Objects-API"
+	^ apiUrl copyFrom: 1 to: (apiUrl size - 6)
+]
+
 { #category : 'accessing' }
 GrocyChoreClient >> postToChoreId: anInteger action: actionString jsonBody: jsonString [
 
@@ -134,6 +204,23 @@ GrocyChoreClient >> postToChoreId: anInteger action: actionString jsonBody: json
 	"Wenn Grocy nicht mit 200/204 antwortet, wirft Pharo jetzt einen sichtbaren Fehler"
 	clientInstance isSuccess ifFalse: [
 		self error: 'Grocy API Fehler: ', clientInstance response statusLine asString ]
+]
+
+{ #category : 'removing' }
+GrocyChoreClient >> removeShoppingItemId: anInteger [
+	"Generische Objekte werden in Grocy über einen DELETE-Request gelöscht"
+
+	| targetUrl |
+	apiKey ifNil: [ self error: 'Missing API Key' ].
+	
+	"Baut z.B. http://localhost:9283/api/objects/shopping_list/31"
+	targetUrl := (apiUrl copyFrom: 1 to: (apiUrl size - 6)), 'objects/shopping_list/', anInteger asString.
+
+	ZnClient new
+		url: targetUrl;
+		headerAt: 'grocy-api-key' put: apiKey;
+		delete "Führt den echten HTTP DELETE Befehl aus"
+
 ]
 
 { #category : 'initialization' }
