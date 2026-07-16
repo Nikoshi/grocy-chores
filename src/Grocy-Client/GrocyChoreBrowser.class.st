@@ -172,30 +172,36 @@ Bitte gib deinen Grocy API-Key ein:'.
 
 { #category : 'initialization' }
 GrocyChoreBrowser >> initializePresenters [
+
 	searchField := self newTextInput.
 	searchField placeholder: 'Einträge, Aufgaben oder To-Dos filtern...'.
 
 	choreList := self newTable.
 	(debugMode notNil and: [ debugMode ]) ifTrue: [ choreList addColumn: self idColumn ].
-	choreList addColumn: self nameColumn; addColumn: self dateColumn; addColumn: self statusColumn.
+	choreList
+		addColumn: self nameColumn;
+		addColumn: self dateColumn;
+		addColumn: self statusColumn.
 
 	taskList := self newTable.
-	(debugMode notNil and: [ debugMode ]) ifTrue: [ taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
-	taskList addColumn: ((SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable);
-		addColumn: ((SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable);
-		addColumn: ((SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable).
+	(debugMode notNil and: [ debugMode ]) ifTrue: [
+		taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
+	taskList
+		addColumn: (SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable.
 
 	shoppingListTable := self newTable.
 	(debugMode notNil and: [ debugMode ]) ifTrue: [
 		shoppingListTable addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :item | item id asString ]) beSortable ].
 	shoppingListTable
-		addColumn: ((SpStringTableColumn title: 'Eintrag / Produkt' evaluated: [ :item | item displayName ]) beSortable);
-		addColumn: ((SpStringTableColumn title: 'Menge' evaluated: [ :item | item amount asString ]) beSortable).
+		addColumn: (SpStringTableColumn title: 'Eintrag / Produkt' evaluated: [ :item | item displayName ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Menge' evaluated: [ :item | item amount asString ]) beSortable.
 
 	notebook := self newNotebook.
 	notebook
 		addPage: (SpNotebookPage title: 'Wiederkehrend (Chores)' icon: (self iconNamed: #calendar) provider: [ choreList ]);
-		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #task) provider: [ taskList ]);
+		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #checkboxSelected) provider: [ taskList ]);
 		addPage: (SpNotebookPage title: 'Einkaufsliste' icon: (self iconNamed: #book) provider: [ shoppingListTable ]).
 
 	refreshButton := self newButton.
