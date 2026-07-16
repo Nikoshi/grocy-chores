@@ -216,7 +216,8 @@ GrocyChoreBrowser >> initializeWindow: aWindowPresenter [
 		"Sobald das Fenster geschlossen wird, killen wir den Timer-Prozess"whenClosedDo: [ self stopAutoRefreshTimer ].
 
 	"Sofort beim Öffnen den Timer starten"
-	self startAutoRefreshTimer
+	self startAutoRefreshTimer.
+	[ self refreshChoreList ] forkAt: Processor userBackgroundPriority named: 'Grocy-InitialSync'
 ]
 
 { #category : 'initialization' }
