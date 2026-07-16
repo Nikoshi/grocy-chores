@@ -103,11 +103,18 @@ GrocyChoreBrowser >> createContextMenu [
 
 { #category : 'initialization' }
 GrocyChoreBrowser >> createShoppingContextMenu [
+
 	^ self newMenu
-		addItem: [ :item |
-			item name: 'Artikel von Liste entfernen'; icon: (self iconNamed: #delete); action: [ self removeSelectedShoppingItem ] ];
-		addItem: [ :item |
-			item name: 'KOMPLETTE LISTE LEEREN'; icon: (self iconNamed: #remove); action: [ self clearWholeShoppingList ] ]
+		  addItem: [ :item |
+				  item
+					  name: 'Artikel von Liste entfernen';
+					  icon: (self iconNamed: #delete);
+					  action: [ self removeSelectedShoppingItem ] ];
+		  addItem: [ :item |
+				  item
+					  name: 'KOMPLETTE LISTE LEEREN';
+					  icon: (self iconNamed: #remove);
+					  action: [ self clearWholeShoppingList ] ]
 ]
 
 { #category : 'initialization' }
