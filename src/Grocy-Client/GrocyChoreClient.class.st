@@ -8,9 +8,22 @@ Class {
 		'apiUrl',
 		'apiKey'
 	],
+	#classVars : [
+		'DefaultApiKey'
+	],
 	#category : 'Grocy-Client',
 	#package : 'Grocy-Client'
 }
+
+{ #category : 'initialization' }
+GrocyChoreClient class >> defaultApiKey [
+	^ DefaultApiKey
+]
+
+{ #category : 'initialization' }
+GrocyChoreClient class >> defaultApiKey: aString [
+	DefaultApiKey := aString
+]
 
 { #category : 'accessing' }
 GrocyChoreClient >> apiKey: aString [
@@ -52,7 +65,8 @@ GrocyChoreClient >> getChores [
 { #category : 'initialization' }
 GrocyChoreClient >> initialize [
 	super initialize.
-	apiUrl := 'http://localhost:9283/api/chores'
+	apiUrl := 'http://localhost:9283/api/chores'.
+	apiKey := self class defaultApiKey
 ]
 
 { #category : 'accessing' }

@@ -93,11 +93,26 @@ GrocyChoreBrowser >> idColumn [
 { #category : 'initialization' }
 GrocyChoreBrowser >> initialize [
 
+	| gespeicherterKey eingabe |
 	super initialize.
-	client := GrocyChoreClient new apiKey: 'hksRr1XsrPTD2OtACh8tUcYJoe9zJHL1IF5twJPqiAuGrlKh0f'.
 	allChores := OrderedCollection new.
 	notifiedChoreIds := Set new.
-	debugMode := false
+	debugMode := false.
+
+	gespeicherterKey := GrocyChoreClient defaultApiKey.
+
+	gespeicherterKey ifNil: [
+			eingabe := UIManager default request: 'ERSTER START: API-KEY BENÖTIGT
+
+Bitte gib deinen Grocy API-Key ein:'.
+
+			"Prüfen, ob der Nutzer Text eingegeben und nicht Abbrechen geklickt hat"
+			(eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [
+					GrocyChoreClient defaultApiKey: eingabe trimBoth.
+					gespeicherterKey := eingabe trimBoth ] ].
+
+	client := GrocyChoreClient new.
+	client apiKey: gespeicherterKey
 ]
 
 { #category : 'initialization' }
