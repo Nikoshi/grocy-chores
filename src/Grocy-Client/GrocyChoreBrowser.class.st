@@ -16,10 +16,13 @@ Class {
 		'notifiedChoreIds',
 		'notebook',
 		'taskList',
-		'allTasks'
+		'allTasks',
+		'shoppingListTable',
+		'allShoppingItems'
 	],
-	#category : 'Grocy-Client',
-	#package : 'Grocy-Client'
+	#category : 'Grocy-Client-Base',
+	#package : 'Grocy-Client',
+	#tag : 'Base'
 }
 
 { #category : 'layout' }
@@ -31,6 +34,16 @@ GrocyChoreBrowser class >> defaultLayout [
 		add: #refreshButton expand: false;
 		add: #statusLabel expand: false;
 		yourself
+]
+
+{ #category : 'removing' }
+GrocyChoreBrowser >> clearWholeShoppingList [
+	(UIManager default confirm: 'Möchtest du die Einkaufsliste wirklich komplett leeren?') ifTrue: [
+		[
+			client clearShoppingList.
+			self refreshChoreList.
+			self inform: 'Einkaufsliste wurde komplett geleert!'.
+		] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
 ]
 
 { #category : 'updating' }
@@ -47,13 +60,14 @@ GrocyChoreBrowser >> completeSelectedTask [
 GrocyChoreBrowser >> connectPresenters [
 	refreshButton action: [ self refreshChoreList ].
 	searchField whenTextChangedDo: [ :text | self updateFilteredList ].
-
+	
 	choreList contextMenu: self createContextMenu.
-	taskList contextMenu: (self newMenu addItem: [ :item |
-		item
-			name: 'Als erledigt markieren (Abschließen)';
-			icon: (self iconNamed: #testGreen);
-			action: [ self completeSelectedTask ] ])
+	taskList contextMenu: (self newMenu addItem: [ :item | 
+		item name: 'Als erledigt markieren'; icon: (self iconNamed: #testGreen); action: [ self completeSelectedTask ] ]).
+		
+	"Neu"
+	shoppingListTable contextMenu: self createShoppingContextMenu
+
 ]
 
 { #category : 'context menu' }
@@ -70,6 +84,15 @@ GrocyChoreBrowser >> createContextMenu [
 				name: 'Aufgabe überspringen (Skip)';
 				icon: (self iconNamed: #testGray);
 				action: [ self skipSelectedChore ] ]
+]
+
+{ #category : 'initialization' }
+GrocyChoreBrowser >> createShoppingContextMenu [
+	^ self newMenu
+		addItem: [ :item |
+			item name: 'Artikel von Liste entfernen'; icon: (self iconNamed: #delete); action: [ self removeSelectedShoppingItem ] ];
+		addItem: [ :item |
+			item name: 'KOMPLETTE LISTE LEEREN'; icon: (self iconNamed: #remove); action: [ self clearWholeShoppingList ] ]
 ]
 
 { #category : 'initialization' }
@@ -93,12 +116,13 @@ GrocyChoreBrowser >> executeSelectedChore [
 ]
 
 { #category : 'formatting' }
-GrocyChoreBrowser >> formatDateString: aString [
-	"Schneidet die Uhrzeit ab, falls der String lang genug ist"
-	aString ifNil: [ ^ 'Kein Datum' ].
-	^ aString size >= 10
-		ifTrue: [ aString copyFrom: 1 to: 10 ]
-		ifFalse: [ aString ]
+GrocyChoreBrowser >> formatDateString: anObject [
+	"Garantierte Typensicherheit vor dem Kopieren des Strings"
+	anObject ifNil: [ ^ 'Kein Datum' ].
+	^ anObject asString size >= 10 
+		ifTrue: [ anObject asString copyFrom: 1 to: 10 ] 
+		ifFalse: [ anObject asString ]
+
 ]
 
 { #category : 'initialization' }
@@ -114,6 +138,7 @@ GrocyChoreBrowser >> initialize [
 	super initialize.
 	allChores := OrderedCollection new.
 	allTasks := OrderedCollection new.
+	allShoppingItems := OrderedCollection new.
 	notifiedChoreIds := Set new.
 	debugMode := false.
 
@@ -136,31 +161,33 @@ Bitte gib deinen Grocy API-Key ein:'.
 { #category : 'initialization' }
 GrocyChoreBrowser >> initializePresenters [
 	searchField := self newTextInput.
-	searchField placeholder: 'Aufgaben oder To-Dos filtern...'.
+	searchField placeholder: 'Einträge, Aufgaben oder To-Dos filtern...'.
 
-	"1. Chores Tabelle bauen"
 	choreList := self newTable.
 	(debugMode notNil and: [ debugMode ]) ifTrue: [ choreList addColumn: self idColumn ].
 	choreList addColumn: self nameColumn; addColumn: self dateColumn; addColumn: self statusColumn.
 
-	"2. Neue Tasks Tabelle bauen (Mit beSortable direkt auf den Spalten)"
 	taskList := self newTable.
-	(debugMode notNil and: [ debugMode ]) ifTrue: [
-		taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
-
-	taskList
-		addColumn: ((SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable);
+	(debugMode notNil and: [ debugMode ]) ifTrue: [ taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
+	taskList addColumn: ((SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable);
 		addColumn: ((SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable);
 		addColumn: ((SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable).
 
-	"3. Tabs (Notebook) zusammenstellen"
+	shoppingListTable := self newTable.
+	(debugMode notNil and: [ debugMode ]) ifTrue: [
+		shoppingListTable addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :item | item id asString ]) beSortable ].
+	shoppingListTable
+		addColumn: ((SpStringTableColumn title: 'Eintrag / Produkt' evaluated: [ :item | item displayName ]) beSortable);
+		addColumn: ((SpStringTableColumn title: 'Menge' evaluated: [ :item | item amount asString ]) beSortable).
+
 	notebook := self newNotebook.
 	notebook
 		addPage: (SpNotebookPage title: 'Wiederkehrend (Chores)' icon: (self iconNamed: #calendar) provider: [ choreList ]);
-		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #task) provider: [ taskList ]).
+		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #task) provider: [ taskList ]);
+		addPage: (SpNotebookPage title: 'Einkaufsliste' icon: (self iconNamed: #book) provider: [ shoppingListTable ]).
 
 	refreshButton := self newButton.
-	refreshButton label: 'Alles aktualisieren'.
+	refreshButton label: 'Alles aktualisieren / Synchronisieren'.
 	refreshButton icon: (self iconNamed: #refresh).
 
 	statusLabel := self newLabel.
@@ -191,6 +218,7 @@ GrocyChoreBrowser >> refreshChoreList [
 	[
 		allChores := client getChores.
 		allTasks := client getTasks.
+		allShoppingItems := client getShoppingList. "Neu"
 
 		UIManager default defer: [
 			self updateFilteredList.
@@ -198,6 +226,16 @@ GrocyChoreBrowser >> refreshChoreList [
 	] on: Error do: [ :err |
 		UIManager default defer: [
 			self inform: 'Fehler beim Laden: ', err messageText ] ]
+]
+
+{ #category : 'removing' }
+GrocyChoreBrowser >> removeSelectedShoppingItem [
+	shoppingListTable selectedItem ifNotNil: [ :item |
+		[
+			client removeShoppingItemId: item id.
+			self refreshChoreList.
+			self inform: ('"{1}" von Einkaufsliste entfernt.' format: { item displayName }).
+		] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
 ]
 
 { #category : 'displaying' }
@@ -291,18 +329,21 @@ GrocyChoreBrowser >> stopAutoRefreshTimer [
 { #category : 'updating' }
 GrocyChoreBrowser >> updateFilteredList [
 
-	| query filteredChores filteredTasks |
+	| query filteredChores filteredTasks filteredItems |
 	query := searchField text trimBoth asLowercase.
 
 	query isEmpty
 		ifTrue: [
 			choreList items: allChores.
-			taskList items: allTasks ]
+			taskList items: allTasks.
+			shoppingListTable items: allShoppingItems ]
 		ifFalse: [
 			filteredChores := allChores select: [ :c | c name asLowercase includesSubstring: query ].
 			filteredTasks := allTasks select: [ :t | t name asLowercase includesSubstring: query ].
+			filteredItems := allShoppingItems select: [ :i | i displayName asLowercase includesSubstring: query ]. "Neu"
 			choreList items: filteredChores.
-			taskList items: filteredTasks ]
+			taskList items: filteredTasks.
+			shoppingListTable items: filteredItems ]
 ]
 
 { #category : 'updating' }
