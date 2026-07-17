@@ -51,21 +51,31 @@ GrocyChoreBrowser class >> menuCommandOn: aBuilder [
 { #category : 'actions' }
 GrocyChoreBrowser >> clearWholeShoppingList [
     (UIManager default confirm: 'Möchtest du die Einkaufsliste wirklich komplett leeren?') ifTrue: [
-        [
-            client clearShoppingList.
-            self refreshChoreList.
-            self inform: 'Einkaufsliste wurde komplett geleert!'.
-        ] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
+        [ 
+            [
+                client clearShoppingList.
+                self refreshChoreList.
+                UIManager default defer: [ 
+                    self inform: 'Einkaufsliste wurde komplett geleert!' ].
+            ] on: Error do: [ :err |
+                UIManager default defer: [ 
+                    self inform: 'Fehler: ', err messageText ] ]
+        ] forkAt: Processor userBackgroundPriority named: 'Grocy-ClearShoppingList' ]
 ]
 
 { #category : 'actions' }
 GrocyChoreBrowser >> completeSelectedTask [
     taskList selectedItem ifNotNil: [ :task |
-        [
-            client completeTaskId: task id.
-            self refreshChoreList.
-            self inform: ('To-Do "{1}" erfolgreich abgeschlossen!' format: { task name }).
-        ] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
+        [ 
+            [
+                client completeTaskId: task id.
+                self refreshChoreList.
+                UIManager default defer: [ 
+                    self inform: ('To-Do "{1}" erfolgreich abgeschlossen!' format: { task name }) ].
+            ] on: Error do: [ :err |
+                UIManager default defer: [ 
+                    self inform: 'Fehler: ', err messageText ] ]
+        ] forkAt: Processor userBackgroundPriority named: 'Grocy-CompleteTask' ]
 ]
 
 { #category : 'initialization' }
@@ -129,13 +139,17 @@ GrocyChoreBrowser >> debugMode [
 { #category : 'actions' }
 GrocyChoreBrowser >> executeSelectedChore [
     choreList selectedItem ifNotNil: [ :chore |
-        [
-            client executeChoreId: chore id.
-            notifiedChoreIds remove: chore id ifAbsent: [ ].
-            self refreshChoreList.
-            self inform: ('Aufgabe "{1}" erfolgreich erledigt!' format: { chore name }).
-        ] on: Error do: [ :err |
-            self inform: 'Fehler beim Erledigen: ', err messageText ] ]
+        [ 
+            [
+                client executeChoreId: chore id.
+                notifiedChoreIds remove: chore id ifAbsent: [ ].
+                self refreshChoreList.
+                UIManager default defer: [ 
+                    self inform: ('Aufgabe "{1}" erfolgreich erledigt!' format: { chore name }) ].
+            ] on: Error do: [ :err |
+                UIManager default defer: [ 
+                    self inform: 'Fehler beim Erledigen: ', err messageText ] ]
+        ] forkAt: Processor userBackgroundPriority named: 'Grocy-ExecuteChore' ]
 ]
 
 { #category : 'private' }
@@ -277,46 +291,56 @@ GrocyChoreBrowser >> registerHotReload: aWindow [
 { #category : 'actions' }
 GrocyChoreBrowser >> removeSelectedShoppingItem [
     shoppingListTable selectedItem ifNotNil: [ :item |
-        [
-            client removeShoppingItemId: item id.
-            self refreshChoreList.
-            self inform: ('"{1}" von Einkaufsliste entfernt.' format: { item displayName }).
-        ] on: Error do: [ :err | self inform: 'Fehler: ', err messageText ] ]
+        [ 
+            [
+                client removeShoppingItemId: item id.
+                self refreshChoreList.
+                UIManager default defer: [ 
+                    self inform: ('"{1}" von Einkaufsliste entfernt.' format: { item displayName }) ].
+            ] on: Error do: [ :err |
+                UIManager default defer: [ 
+                    self inform: 'Fehler: ', err messageText ] ]
+        ] forkAt: Processor userBackgroundPriority named: 'Grocy-RemoveShoppingItem' ]
 ]
 
 { #category : 'private' }
 GrocyChoreBrowser >> sendOSNotificationTitle: titleString message: messageString [
-
-    | platform rawScript bytes base64Script |
-    platform := OSPlatform current.
-    platform isMacOS ifTrue: [
+    [
+        | platform rawScript bytes base64Script |
+        platform := OSPlatform current.
+        platform isMacOS ifTrue: [
             LibC runCommand: ('osascript -e ''display notification "{1}" with title "{2}"''' format: {
-                         messageString.
-                         titleString }).
+                messageString.
+                titleString }).
             ^ self ].
-    platform isWindows ifTrue: [
+        platform isWindows ifTrue: [
             rawScript := '[void][System.Reflection.Assembly]::LoadWithPartialName(''System.Windows.Forms''); '
-                         , '$icon = New-Object System.Windows.Forms.NotifyIcon; '
-                         , '$icon.Icon = [System.Drawing.SystemIcons]::Information; ' , '$icon.Visible = $true; '
-                         , '$icon.ShowBalloonTip(5000, ''{1}'', ''{2}'', ''Info''); ' , 'Start-Sleep -Seconds 4;'.
+                , '$icon = New-Object System.Windows.Forms.NotifyIcon; '
+                , '$icon.Icon = [System.Drawing.SystemIcons]::Information; ' , '$icon.Visible = $true; '
+                , '$icon.ShowBalloonTip(5000, ''{1}'', ''{2}'', ''Info''); ' , 'Start-Sleep -Seconds 4;'.
             rawScript := rawScript format: { titleString. messageString }.
             bytes := (ZnCharacterEncoder newForEncoding: #utf16le) encodeString: rawScript.
             base64Script := ZnBase64Encoder new encode: bytes.
             LibC runCommand: 'powershell -WindowStyle Hidden -EncodedCommand ' , base64Script.
             ^ self ].
-    platform isUnix ifFalse: [ ^ self ].
-    LibC runCommand: ('notify-send "{1}" "{2}"' format: { titleString. messageString })
+        platform isUnix ifTrue: [
+            LibC runCommand: ('notify-send "{1}" "{2}"' format: { titleString. messageString }) ]
+    ] forkAt: Processor userBackgroundPriority named: 'Grocy-OSNotification'
 ]
 
 { #category : 'actions' }
 GrocyChoreBrowser >> skipSelectedChore [
     choreList selectedItem ifNotNil: [ :chore |
-        [
-            client skipChoreId: chore id.
-            self refreshChoreList.
-            self inform: ('Aufgabe "{1}" übersprungen.' format: { chore name }).
-        ] on: Error do: [ :err |
-            self inform: 'Fehler beim Überspringen: ', err messageText ] ]
+        [ 
+            [
+                client skipChoreId: chore id.
+                self refreshChoreList.
+                UIManager default defer: [ 
+                    self inform: ('Aufgabe "{1}" übersprungen.' format: { chore name }) ].
+            ] on: Error do: [ :err |
+                UIManager default defer: [ 
+                    self inform: 'Fehler beim Überspringen: ', err messageText ] ]
+        ] forkAt: Processor userBackgroundPriority named: 'Grocy-SkipChore' ]
 ]
 
 { #category : 'actions - timer' }
