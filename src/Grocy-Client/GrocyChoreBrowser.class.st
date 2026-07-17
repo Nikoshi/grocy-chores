@@ -2,27 +2,27 @@
 Graphical version of the grocy chores
 "
 Class {
-    #name : 'GrocyChoreBrowser',
-    #superclass : 'SpPresenter',
-    #instVars : [
-        'client',
-        'choreList',
-        'refreshButton',
-        'searchField',
-        'allChores',
-        'debugMode',
-        'statusLabel',
-        'timerProcess',
-        'notifiedChoreIds',
-        'notebook',
-        'taskList',
-        'allTasks',
-        'shoppingListTable',
-        'allShoppingItems'
-    ],
-    #category : 'Grocy-Client-Base',
-    #package : 'Grocy-Client',
-    #tag : 'Base'
+	#name : 'GrocyChoreBrowser',
+	#superclass : 'SpPresenter',
+	#instVars : [
+		'client',
+		'choreList',
+		'refreshButton',
+		'searchField',
+		'allChores',
+		'debugMode',
+		'statusLabel',
+		'timerProcess',
+		'notifiedChoreIds',
+		'notebook',
+		'taskList',
+		'allTasks',
+		'shoppingListTable',
+		'allShoppingItems'
+	],
+	#category : 'Grocy-Client-Base',
+	#package : 'Grocy-Client',
+	#tag : 'Base'
 }
 
 { #category : 'layout' }
@@ -120,6 +120,12 @@ GrocyChoreBrowser >> dateColumn [
         beSortable
 ]
 
+{ #category : 'accessing' }
+GrocyChoreBrowser >> debugMode [
+
+	^ debugMode ifNil: [ debugMode := false ]
+]
+
 { #category : 'actions' }
 GrocyChoreBrowser >> executeSelectedChore [
     choreList selectedItem ifNotNil: [ :chore |
@@ -149,69 +155,67 @@ GrocyChoreBrowser >> idColumn [
 { #category : 'initialization' }
 GrocyChoreBrowser >> initialize [
 
-    | gespeicherterKey eingabe |
-    super initialize.
-    allChores := OrderedCollection new.
-    allTasks := OrderedCollection new.
-    allShoppingItems := OrderedCollection new.
-    notifiedChoreIds := Set new.
-    debugMode := false.
+	| gespeicherterKey eingabe |
+	super initialize.
+	allChores := OrderedCollection new.
+	allTasks := OrderedCollection new.
+	allShoppingItems := OrderedCollection new.
+	notifiedChoreIds := Set new.
 
-    gespeicherterKey := GrocyChoreClient defaultApiKey.
+	gespeicherterKey := GrocyChoreClient defaultApiKey.
 
-    gespeicherterKey ifNil: [
-            eingabe := UIManager default request: 'ERSTER START: API-KEY BENÖTIGT
+	gespeicherterKey ifNil: [
+			eingabe := UIManager default request: 'ERSTER START: API-KEY BENÖTIGT
 
 Bitte gib deinen Grocy API-Key ein:'.
 
-            (eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [
-                    GrocyChoreClient defaultApiKey: eingabe trimBoth.
-                    gespeicherterKey := eingabe trimBoth ] ].
+			(eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [
+					GrocyChoreClient defaultApiKey: eingabe trimBoth.
+					gespeicherterKey := eingabe trimBoth ] ].
 
-    client := GrocyChoreClient new.
-    client apiKey: gespeicherterKey
+	client := GrocyChoreClient new.
+	client apiKey: gespeicherterKey
 ]
 
 { #category : 'initialization' }
 GrocyChoreBrowser >> initializePresenters [
 
-    searchField := self newTextInput.
-    searchField placeholder: 'Einträge, Aufgaben oder To-Dos filtern...'.
+	searchField := self newTextInput.
+	searchField placeholder: 'Einträge, Aufgaben oder To-Dos filtern...'.
 
-    choreList := self newTable.
-    debugMode ifTrue: [ choreList addColumn: self idColumn ].
-    choreList
-        addColumn: self nameColumn;
-        addColumn: self dateColumn;
-        addColumn: self statusColumn.
+	choreList := self newTable.
+	self debugMode ifTrue: [ choreList addColumn: self idColumn ].
+	choreList
+		addColumn: self nameColumn;
+		addColumn: self dateColumn;
+		addColumn: self statusColumn.
 
-    taskList := self newTable.
-    debugMode ifTrue: [
-        taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
-    taskList
-        addColumn: (SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable;
-        addColumn: (SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable;
-        addColumn: (SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable.
+	taskList := self newTable.
+	debugMode ifTrue: [ taskList addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :task | task id asString ]) beSortable ].
+	taskList
+		addColumn: (SpStringTableColumn title: 'To-Do' evaluated: [ :task | task name ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Fällig am' evaluated: [ :task | self formatDateString: task dueDate ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Status' evaluated: [ :task | self statusTextFor: task ]) beSortable.
 
-    shoppingListTable := self newTable.
-    debugMode ifTrue: [
-        shoppingListTable addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :item | item id asString ]) beSortable ].
-    shoppingListTable
-        addColumn: (SpStringTableColumn title: 'Eintrag / Produkt' evaluated: [ :item | item displayName ]) beSortable;
-        addColumn: (SpStringTableColumn title: 'Menge' evaluated: [ :item | item amount asString ]) beSortable.
+	shoppingListTable := self newTable.
+	debugMode ifTrue: [
+		shoppingListTable addColumn: (SpStringTableColumn title: 'ID' evaluated: [ :item | item id asString ]) beSortable ].
+	shoppingListTable
+		addColumn: (SpStringTableColumn title: 'Eintrag / Produkt' evaluated: [ :item | item displayName ]) beSortable;
+		addColumn: (SpStringTableColumn title: 'Menge' evaluated: [ :item | item amount asString ]) beSortable.
 
-    notebook := self newNotebook.
-    notebook
-        addPage: (SpNotebookPage title: 'Wiederkehrend (Chores)' icon: (self iconNamed: #calendar) provider: [ choreList ]);
-        addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #checkboxSelected) provider: [ taskList ]);
-        addPage: (SpNotebookPage title: 'Einkaufsliste' icon: (self iconNamed: #book) provider: [ shoppingListTable ]).
+	notebook := self newNotebook.
+	notebook
+		addPage: (SpNotebookPage title: 'Wiederkehrend (Chores)' icon: (self iconNamed: #calendar) provider: [ choreList ]);
+		addPage: (SpNotebookPage title: 'Einmalig (Tasks)' icon: (self iconNamed: #checkboxSelected) provider: [ taskList ]);
+		addPage: (SpNotebookPage title: 'Einkaufsliste' icon: (self iconNamed: #book) provider: [ shoppingListTable ]).
 
-    refreshButton := self newButton.
-    refreshButton label: 'Alles aktualisieren / Synchronisieren'.
-    refreshButton icon: (self iconNamed: #refresh).
+	refreshButton := self newButton.
+	refreshButton label: 'Alles aktualisieren / Synchronisieren'.
+	refreshButton icon: (self iconNamed: #refresh).
 
-    statusLabel := self newLabel.
-    statusLabel label: 'Noch keine Daten geladen.'
+	statusLabel := self newLabel.
+	statusLabel label: 'Noch keine Daten geladen.'
 ]
 
 { #category : 'initialization' }

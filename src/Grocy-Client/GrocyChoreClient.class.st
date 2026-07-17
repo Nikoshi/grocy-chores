@@ -1,18 +1,18 @@
 Class {
-    #name : 'GrocyChoreClient',
-    #superclass : 'Object',
-    #instVars : [
-        'baseUrl',
-        'apiKey',
-        'httpClient',
-        'productCache'
-    ],
-    #classVars : [
-        'DefaultApiKey'
-    ],
-    #category : 'Grocy-Client-Base',
-    #package : 'Grocy-Client',
-    #tag : 'Base'
+	#name : 'GrocyChoreClient',
+	#superclass : 'Object',
+	#instVars : [
+		'baseUrl',
+		'apiKey',
+		'httpClient',
+		'productCache'
+	],
+	#classVars : [
+		'DefaultApiKey'
+	],
+	#category : 'Grocy-Client-Base',
+	#package : 'Grocy-Client',
+	#tag : 'Base'
 }
 
 { #category : 'accessing' }
