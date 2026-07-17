@@ -4,7 +4,8 @@ Class {
     #instVars : [
         'baseUrl',
         'apiKey',
-        'httpClient'
+        'httpClient',
+        'productCache'
     ],
     #classVars : [
         'DefaultApiKey'
@@ -44,15 +45,18 @@ GrocyChoreClient >> baseUrl: aString [
 { #category : 'private' }
 GrocyChoreClient >> buildProductCache [
 
-    | productsJson cache |
+    | productsJson |
+    productCache ifNotNil: [ ^ productCache ].
+
     productsJson := STONJSON fromString: (httpClient
         url: (self baseUrl , '/objects/products');
         get).
 
-    cache := Dictionary new.
+    productCache := Dictionary new.
     productsJson do: [ :prod |
-        cache at: (prod at: 'id') put: (prod at: 'name') ].
-    ^ cache
+        productCache at: (prod at: 'id') put: (prod at: 'name') ].
+    
+    ^ productCache
 ]
 
 { #category : 'api - actions' }
@@ -66,23 +70,13 @@ GrocyChoreClient >> clearShoppingList [
 { #category : 'api - actions' }
 GrocyChoreClient >> completeTaskId: anInteger [
 
-    | targetUrl isoDateString jsonBody jsonEntity |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
+    | targetUrl payload |
     targetUrl := self baseUrl, '/tasks/', anInteger asString, '/complete'.
-
-    isoDateString := Date today yyyymmdd.
-    jsonBody := '{"done_time": "', isoDateString, '"}'.
-
-    jsonEntity := ZnEntity text: jsonBody.
-    jsonEntity contentType: ZnMimeType applicationJson.
-
-    httpClient
-        url: targetUrl;
-        entity: jsonEntity;
-        post.
-
-    httpClient isSuccess ifFalse: [
-        self error: 'Grocy API Fehler: ', httpClient response statusLine asString ]
+    
+    "Datum im Format YYYY-MM-DD"
+    payload := { 'done_time' -> (Date today printFormat: #(3 2 1 $- 1 1 2)) } asDictionary.
+    
+    self postUrl: targetUrl jsonDictionary: payload
 ]
 
 { #category : 'api - actions' }
@@ -91,15 +85,13 @@ GrocyChoreClient >> executeChoreId: anInteger [
     self
         postToChoreId: anInteger
         action: 'execute'
-        jsonBody: '{"skipped": false, "done_by": null}'
+        jsonDictionary: { 'skipped' -> false . 'done_by' -> nil } asDictionary
 ]
 
 { #category : 'api - accessing' }
 GrocyChoreClient >> getChores [
 
     | jsonArray |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
-
     jsonArray := STONJSON fromString: (httpClient
         url: (self baseUrl, '/chores');
         get).
@@ -114,25 +106,21 @@ GrocyChoreClient >> getChores [
 { #category : 'api - accessing' }
 GrocyChoreClient >> getShoppingList [
 
-    | shoppingJson productCache |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
-
-    productCache := self buildProductCache.
+    | shoppingJson cache |
+    cache := self buildProductCache.
 
     shoppingJson := STONJSON fromString: (httpClient
         url: (self baseUrl , '/objects/shopping_list');
         get).
 
     ^ shoppingJson collect: [ :each |
-        self mapShoppingItem: each withCache: productCache ]
+        self mapShoppingItem: each withCache: cache ]
 ]
 
 { #category : 'api - accessing' }
 GrocyChoreClient >> getTasks [
 
     | jsonArray |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
-
     jsonArray := STONJSON fromString: (httpClient
         url: (self baseUrl, '/tasks?status=open');
         get).
@@ -148,12 +136,21 @@ GrocyChoreClient >> getTasks [
 GrocyChoreClient >> initialize [
     super initialize.
     baseUrl := 'http://localhost:9283/api'.
+    
     httpClient := ZnClient new.
+    httpClient enforceHttpSuccess: true. "Wirft ZnHttpUnsuccessful bei 4xx/5xx"
+    
     self class defaultApiKey ifNotNil: [ :key | self apiKey: key ]
 ]
 
+{ #category : 'api - actions' }
+GrocyChoreClient >> invalidateProductCache [
+    "Leert den Cache, damit er beim nächsten Aufruf neu von der API geladen wird"
+    productCache := nil
+]
+
 { #category : 'private' }
-GrocyChoreClient >> mapShoppingItem: each withCache: productCache [
+GrocyChoreClient >> mapShoppingItem: each withCache: cache [
 
     | itemId prodId prodName noteText itemAmount |
     itemId := each at: 'id'.
@@ -163,7 +160,7 @@ GrocyChoreClient >> mapShoppingItem: each withCache: productCache [
     prodId := each at: 'product_id' ifAbsent: [ nil ].
     prodName := prodId
         ifNil: [ nil ]
-        ifNotNil: [ productCache at: prodId ifAbsent: [ 'Unbekanntes Produkt' ] ].
+        ifNotNil: [ cache at: prodId ifAbsent: [ 'Unbekanntes Produkt' ] ].
 
     ^ GrocyShoppingItem new
         id: itemId
@@ -173,35 +170,33 @@ GrocyChoreClient >> mapShoppingItem: each withCache: productCache [
 ]
 
 { #category : 'private' }
-GrocyChoreClient >> postToChoreId: anInteger action: actionString jsonBody: jsonString [
+GrocyChoreClient >> postToChoreId: anInteger action: actionString jsonDictionary: aDictionary [
 
-    | targetUrl jsonEntity |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
-
+    | targetUrl |
     targetUrl := self baseUrl, '/chores/', anInteger asString, '/', actionString.
+    self postUrl: targetUrl jsonDictionary: aDictionary
+]
 
-    jsonEntity := ZnEntity text: jsonString.
+{ #category : 'private' }
+GrocyChoreClient >> postUrl: urlString jsonDictionary: aDictionary [
+    "Generische POST-Methode, die saubere JSON-Bodies erzeugt und den Status des Clients aufräumt"
+
+    | jsonEntity |
+    jsonEntity := ZnEntity text: (STONJSON toString: aDictionary).
     jsonEntity contentType: ZnMimeType applicationJson.
 
     httpClient
-        url: targetUrl;
+        url: urlString;
         entity: jsonEntity;
-        post.
-
-    httpClient isSuccess ifFalse: [
-        self error: 'Grocy API Fehler: ', httpClient response statusLine asString ]
+        post;
+        entity: nil "Verhindert, dass die Entity bei Folge-Requests mitgeschickt wird"
 ]
 
 { #category : 'api - actions' }
 GrocyChoreClient >> removeShoppingItemId: anInteger [
 
-    | targetUrl |
-    apiKey ifNil: [ self error: 'Missing API Key' ].
-    
-    targetUrl := self baseUrl, '/objects/shopping_list/', anInteger asString.
-
     httpClient
-        url: targetUrl;
+        url: (self baseUrl, '/objects/shopping_list/', anInteger asString);
         delete
 ]
 
@@ -211,5 +206,5 @@ GrocyChoreClient >> skipChoreId: anInteger [
     self
         postToChoreId: anInteger
         action: 'execute'
-        jsonBody: '{"skipped": true, "done_by": null}'
+        jsonDictionary: { 'skipped' -> true . 'done_by' -> nil } asDictionary
 ]
