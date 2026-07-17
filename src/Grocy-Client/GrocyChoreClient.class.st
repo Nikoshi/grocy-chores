@@ -7,7 +7,8 @@ Class {
 		'productCache'
 	],
 	#classVars : [
-		'DefaultApiKey'
+		'DefaultApiKey',
+		'DefaultApiUrl'
 	],
 	#category : 'Grocy-Client-Base',
 	#package : 'Grocy-Client',
@@ -25,6 +26,18 @@ GrocyChoreClient class >> defaultApiKey: aString [
 ]
 
 { #category : 'accessing' }
+GrocyChoreClient class >> defaultApiUrl [
+
+	^ DefaultApiUrl 
+]
+
+{ #category : 'accessing' }
+GrocyChoreClient class >> defaultApiUrl: aString [
+
+	DefaultApiUrl := aString
+]
+
+{ #category : 'accessing' }
 GrocyChoreClient >> apiKey: aString [
     apiKey := aString
 ]
@@ -37,16 +50,6 @@ GrocyChoreClient >> baseUrl [
 { #category : 'accessing' }
 GrocyChoreClient >> baseUrl: aString [
     baseUrl := aString
-]
-
-{ #category : 'private' }
-GrocyChoreClient >> httpClient [
-    "Erstellt für jeden Request einen frischen Client, um Thread-Kollisionen zu verhindern"
-    | client |
-    client := ZnClient new.
-    client enforceHttpSuccess: true.
-    apiKey ifNotNil: [ client headerAt: 'grocy-api-key' put: apiKey ].
-    ^ client
 ]
 
 { #category : 'private' }
@@ -138,11 +141,22 @@ GrocyChoreClient >> getTasks [
             dueDate: (each at: 'due_date') ]
 ]
 
+{ #category : 'private' }
+GrocyChoreClient >> httpClient [
+    "Erstellt für jeden Request einen frischen Client, um Thread-Kollisionen zu verhindern"
+    | client |
+    client := ZnClient new.
+    client enforceHttpSuccess: true.
+    apiKey ifNotNil: [ client headerAt: 'grocy-api-key' put: apiKey ].
+    ^ client
+]
+
 { #category : 'initialization' }
 GrocyChoreClient >> initialize [
-    super initialize.
-    baseUrl := 'http://localhost:9283/api'.
-    self class defaultApiKey ifNotNil: [ :key | self apiKey: key ]
+
+	super initialize.
+	self class defaultApiUrl ifNotNil: [ :key | self baseUrl: key ].
+	self class defaultApiKey ifNotNil: [ :key | self apiKey: key ]
 ]
 
 { #category : 'api - actions' }

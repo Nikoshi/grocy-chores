@@ -169,12 +169,22 @@ GrocyChoreBrowser >> idColumn [
 { #category : 'initialization' }
 GrocyChoreBrowser >> initialize [
 
-	| gespeicherterKey eingabe |
+	| gespeicherteUrl gespeicherterKey eingabe |
 	super initialize.
 	allChores := OrderedCollection new.
 	allTasks := OrderedCollection new.
 	allShoppingItems := OrderedCollection new.
 	notifiedChoreIds := Set new.
+
+	gespeicherteUrl := GrocyChoreClient defaultApiUrl.
+	
+	gespeicherteUrl ifNil: [ 
+		eingabe := UIManager default request: 'ERSTER START: API-URL BENÖTIGT
+		
+Bitte gib deine Grocy API-URL ein:'.
+		(eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [ 
+			GrocyChoreClient defaultApiUrl: eingabe trimBoth.
+			gespeicherteUrl := eingabe trimBoth ] ].
 
 	gespeicherterKey := GrocyChoreClient defaultApiKey.
 
@@ -188,7 +198,8 @@ Bitte gib deinen Grocy API-Key ein:'.
 					gespeicherterKey := eingabe trimBoth ] ].
 
 	client := GrocyChoreClient new.
-	client apiKey: gespeicherterKey
+	client apiKey: gespeicherterKey.
+	client baseUrl: gespeicherteUrl
 ]
 
 { #category : 'initialization' }
