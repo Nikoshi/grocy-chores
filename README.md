@@ -17,7 +17,7 @@ Execute the following Metacello script within a Pharo Playground to load the pac
 
 ```smalltalk
 Metacello new
-	repository: 'github://Nikoshi/grocy-pharo-client:main';
+	repository: 'github://Nikoshi/grocy-chores:master';
 	baseline: 'GrocyClient';
 	load.
 ```
