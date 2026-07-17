@@ -4,7 +4,6 @@ Class {
 	#instVars : [
 		'baseUrl',
 		'apiKey',
-		'httpClient',
 		'productCache'
 	],
 	#classVars : [
@@ -27,9 +26,7 @@ GrocyChoreClient class >> defaultApiKey: aString [
 
 { #category : 'accessing' }
 GrocyChoreClient >> apiKey: aString [
-    apiKey := aString.
-    httpClient ifNotNil: [ 
-        httpClient headerAt: 'grocy-api-key' put: apiKey ]
+    apiKey := aString
 ]
 
 { #category : 'accessing' }
@@ -43,12 +40,21 @@ GrocyChoreClient >> baseUrl: aString [
 ]
 
 { #category : 'private' }
-GrocyChoreClient >> buildProductCache [
+GrocyChoreClient >> httpClient [
+    "Erstellt für jeden Request einen frischen Client, um Thread-Kollisionen zu verhindern"
+    | client |
+    client := ZnClient new.
+    client enforceHttpSuccess: true.
+    apiKey ifNotNil: [ client headerAt: 'grocy-api-key' put: apiKey ].
+    ^ client
+]
 
+{ #category : 'private' }
+GrocyChoreClient >> buildProductCache [
     | productsJson |
     productCache ifNotNil: [ ^ productCache ].
 
-    productsJson := STONJSON fromString: (httpClient
+    productsJson := STONJSON fromString: (self httpClient
         url: (self baseUrl , '/objects/products');
         get).
 
@@ -90,9 +96,9 @@ GrocyChoreClient >> executeChoreId: anInteger [
 
 { #category : 'api - accessing' }
 GrocyChoreClient >> getChores [
-
+	
     | jsonArray |
-    jsonArray := STONJSON fromString: (httpClient
+    jsonArray := STONJSON fromString: (self httpClient
         url: (self baseUrl, '/chores');
         get).
 
@@ -105,11 +111,11 @@ GrocyChoreClient >> getChores [
 
 { #category : 'api - accessing' }
 GrocyChoreClient >> getShoppingList [
-
+	
     | shoppingJson cache |
     cache := self buildProductCache.
 
-    shoppingJson := STONJSON fromString: (httpClient
+    shoppingJson := STONJSON fromString: (self httpClient
         url: (self baseUrl , '/objects/shopping_list');
         get).
 
@@ -119,9 +125,9 @@ GrocyChoreClient >> getShoppingList [
 
 { #category : 'api - accessing' }
 GrocyChoreClient >> getTasks [
-
+	
     | jsonArray |
-    jsonArray := STONJSON fromString: (httpClient
+    jsonArray := STONJSON fromString: (self httpClient
         url: (self baseUrl, '/tasks?status=open');
         get).
 
@@ -136,10 +142,6 @@ GrocyChoreClient >> getTasks [
 GrocyChoreClient >> initialize [
     super initialize.
     baseUrl := 'http://localhost:9283/api'.
-    
-    httpClient := ZnClient new.
-    httpClient enforceHttpSuccess: true. "Wirft ZnHttpUnsuccessful bei 4xx/5xx"
-    
     self class defaultApiKey ifNotNil: [ :key | self apiKey: key ]
 ]
 
@@ -179,23 +181,20 @@ GrocyChoreClient >> postToChoreId: anInteger action: actionString jsonDictionary
 
 { #category : 'private' }
 GrocyChoreClient >> postUrl: urlString jsonDictionary: aDictionary [
-    "Generische POST-Methode, die saubere JSON-Bodies erzeugt und den Status des Clients aufräumt"
-
+	
     | jsonEntity |
     jsonEntity := ZnEntity text: (STONJSON toString: aDictionary).
     jsonEntity contentType: ZnMimeType applicationJson.
 
-    httpClient
+    self httpClient
         url: urlString;
         entity: jsonEntity;
-        post;
-        entity: nil "Verhindert, dass die Entity bei Folge-Requests mitgeschickt wird"
+        post
 ]
 
 { #category : 'api - actions' }
 GrocyChoreClient >> removeShoppingItemId: anInteger [
-
-    httpClient
+    self httpClient
         url: (self baseUrl, '/objects/shopping_list/', anInteger asString);
         delete
 ]
