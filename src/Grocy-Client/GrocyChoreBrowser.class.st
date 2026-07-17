@@ -267,8 +267,19 @@ GrocyChoreBrowser >> nameColumn [
 { #category : 'actions' }
 GrocyChoreBrowser >> refreshChoreList [
     [
-        allChores := client getChores.
-        allTasks := client getTasks.
+        "Chores nach verbleibenden Tagen aufsteigend sortieren"
+        allChores := client getChores sorted: [ :a :b | 
+            a daysRemaining <= b daysRemaining ].
+        
+        "Tasks nach Datum aufsteigend sortieren (Tasks ohne Datum ans Ende)"
+        allTasks := client getTasks sorted: [ :a :b | 
+            a dueDate 
+                ifNil: [ false ] 
+                ifNotNil: [ 
+                    b dueDate 
+                        ifNil: [ true ] 
+                        ifNotNil: [ a dueDate <= b dueDate ] ] ].
+                        
         allShoppingItems := client getShoppingList.
 
         UIManager default defer: [
