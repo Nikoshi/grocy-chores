@@ -1,3 +1,6 @@
+"
+Simple API client for interacting with chores, tasks and the shopping list
+"
 Class {
 	#name : 'GrocyChoreClient',
 	#superclass : 'Object',
