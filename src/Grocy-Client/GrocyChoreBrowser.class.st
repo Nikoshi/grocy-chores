@@ -51,14 +51,14 @@ GrocyChoreBrowser class >> menuCommandOn: aBuilder [
 { #category : 'actions' }
 GrocyChoreBrowser >> clearWholeShoppingList [
     (UIManager default confirm: 'Möchtest du die Einkaufsliste wirklich komplett leeren?') ifTrue: [
-        [ 
+        [
             [
                 client clearShoppingList.
                 self refreshChoreList.
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Einkaufsliste wurde komplett geleert!' ].
             ] on: Error do: [ :err |
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Fehler: ', err messageText ] ]
         ] forkAt: Processor userBackgroundPriority named: 'Grocy-ClearShoppingList' ]
 ]
@@ -66,14 +66,14 @@ GrocyChoreBrowser >> clearWholeShoppingList [
 { #category : 'actions' }
 GrocyChoreBrowser >> completeSelectedTask [
     taskList selectedItem ifNotNil: [ :task |
-        [ 
+        [
             [
                 client completeTaskId: task id.
                 self refreshChoreList.
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: ('To-Do "{1}" erfolgreich abgeschlossen!' format: { task name }) ].
             ] on: Error do: [ :err |
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Fehler: ', err messageText ] ]
         ] forkAt: Processor userBackgroundPriority named: 'Grocy-CompleteTask' ]
 ]
@@ -139,15 +139,15 @@ GrocyChoreBrowser >> debugMode [
 { #category : 'actions' }
 GrocyChoreBrowser >> executeSelectedChore [
     choreList selectedItem ifNotNil: [ :chore |
-        [ 
+        [
             [
                 client executeChoreId: chore id.
                 notifiedChoreIds remove: chore id ifAbsent: [ ].
                 self refreshChoreList.
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: ('Aufgabe "{1}" erfolgreich erledigt!' format: { chore name }) ].
             ] on: Error do: [ :err |
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Fehler beim Erledigen: ', err messageText ] ]
         ] forkAt: Processor userBackgroundPriority named: 'Grocy-ExecuteChore' ]
 ]
@@ -155,8 +155,8 @@ GrocyChoreBrowser >> executeSelectedChore [
 { #category : 'private' }
 GrocyChoreBrowser >> formatDateString: anObject [
     anObject ifNil: [ ^ 'Kein Datum' ].
-    ^ anObject asString size >= 10 
-        ifTrue: [ anObject asString copyFrom: 1 to: 10 ] 
+    ^ anObject asString size >= 10
+        ifTrue: [ anObject asString copyFrom: 1 to: 10 ]
         ifFalse: [ anObject asString ]
 ]
 
@@ -177,12 +177,12 @@ GrocyChoreBrowser >> initialize [
 	notifiedChoreIds := Set new.
 
 	gespeicherteUrl := GrocyChoreClient defaultApiUrl.
-	
-	gespeicherteUrl ifNil: [ 
+
+	gespeicherteUrl ifNil: [
 		eingabe := UIManager default request: 'ERSTER START: API-URL BENÖTIGT
-		
+
 Bitte gib deine Grocy API-URL ein:'.
-		(eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [ 
+		(eingabe notNil and: [ eingabe trimBoth isNotEmpty ]) ifTrue: [
 			GrocyChoreClient defaultApiUrl: eingabe trimBoth.
 			gespeicherteUrl := eingabe trimBoth ] ].
 
@@ -268,18 +268,18 @@ GrocyChoreBrowser >> nameColumn [
 GrocyChoreBrowser >> refreshChoreList [
     [
         "Chores nach verbleibenden Tagen aufsteigend sortieren"
-        allChores := client getChores sorted: [ :a :b | 
+        allChores := client getChores sorted: [ :a :b |
             a daysRemaining <= b daysRemaining ].
-        
+
         "Tasks nach Datum aufsteigend sortieren (Tasks ohne Datum ans Ende)"
-        allTasks := client getTasks sorted: [ :a :b | 
-            a dueDate 
-                ifNil: [ false ] 
-                ifNotNil: [ 
-                    b dueDate 
-                        ifNil: [ true ] 
+        allTasks := client getTasks sorted: [ :a :b |
+            a dueDate
+                ifNil: [ false ]
+                ifNotNil: [
+                    b dueDate
+                        ifNil: [ true ]
                         ifNotNil: [ a dueDate <= b dueDate ] ] ].
-                        
+
         allShoppingItems := client getShoppingList.
 
         UIManager default defer: [
@@ -313,14 +313,14 @@ GrocyChoreBrowser >> registerHotReload: aWindow [
 { #category : 'actions' }
 GrocyChoreBrowser >> removeSelectedShoppingItem [
     shoppingListTable selectedItem ifNotNil: [ :item |
-        [ 
+        [
             [
                 client removeShoppingItemId: item id.
                 self refreshChoreList.
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: ('"{1}" von Einkaufsliste entfernt.' format: { item displayName }) ].
             ] on: Error do: [ :err |
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Fehler: ', err messageText ] ]
         ] forkAt: Processor userBackgroundPriority named: 'Grocy-RemoveShoppingItem' ]
 ]
@@ -353,14 +353,14 @@ GrocyChoreBrowser >> sendOSNotificationTitle: titleString message: messageString
 { #category : 'actions' }
 GrocyChoreBrowser >> skipSelectedChore [
     choreList selectedItem ifNotNil: [ :chore |
-        [ 
+        [
             [
                 client skipChoreId: chore id.
                 self refreshChoreList.
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: ('Aufgabe "{1}" übersprungen.' format: { chore name }) ].
             ] on: Error do: [ :err |
-                UIManager default defer: [ 
+                UIManager default defer: [
                     self inform: 'Fehler beim Überspringen: ', err messageText ] ]
         ] forkAt: Processor userBackgroundPriority named: 'Grocy-SkipChore' ]
 ]
